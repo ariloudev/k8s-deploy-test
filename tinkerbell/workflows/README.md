@@ -142,6 +142,86 @@ The following variables must be set:
    tink workflow create --id <workflow-id>
    ```
 
+## Deploying with Kubernetes
+
+If you're running Tinkerbell on Kubernetes, you can deploy the workflow using the provided Kubernetes manifests:
+
+1. **Create the Tinkerbell Namespace**
+   ```bash
+   kubectl create namespace tinkerbell
+   ```
+
+2. **Update the Variables**
+   Edit the `variables.json` section in `k8s-deploy.yaml` with your specific values:
+   ```yaml
+   stringData:
+     variables.json: |
+       {
+         "device_1": {
+           "ip": "192.168.1.100",
+           "user": "ubuntu",
+           "ssh_key": "-----BEGIN OPENSSH PRIVATE KEY-----\nYour SSH private key here\n-----END OPENSSH PRIVATE KEY-----",
+           "mac": "00:11:22:33:44:55"
+         },
+         "image_url": "http://archive.ubuntu.com/ubuntu/dists/noble/main/installer-amd64/current/images/netboot/mini.iso"
+       }
+   ```
+
+3. **Deploy the Workflow**
+   ```bash
+   kubectl apply -f k8s-deploy.yaml
+   ```
+
+4. **Monitor the Deployment**
+   ```bash
+   # Check the job status
+   kubectl get jobs -n tinkerbell
+   
+   # View job logs
+   kubectl logs -n tinkerbell job/tinkerbell-workflow-deploy
+   
+   # Check workflow status
+   kubectl exec -n tinkerbell deploy/tink-server -- tink workflow list
+   ```
+
+5. **Verify the Workflow**
+   ```bash
+   # Check if the workflow completed successfully
+   kubectl exec -n tinkerbell deploy/tink-server -- tink workflow events <workflow-id>
+   
+   # Verify the target machine
+   ssh -i ~/.ssh/your_key ubuntu@<target-ip>
+   ```
+
+### Troubleshooting Kubernetes Deployment
+
+1. **Job Issues**
+   ```bash
+   # Check job status
+   kubectl describe job tinkerbell-workflow-deploy -n tinkerbell
+   
+   # View pod logs
+   kubectl logs -n tinkerbell -l job-name=tinkerbell-workflow-deploy
+   ```
+
+2. **ConfigMap/Secret Issues**
+   ```bash
+   # Verify ConfigMaps
+   kubectl get configmaps -n tinkerbell
+   
+   # Verify Secrets
+   kubectl get secrets -n tinkerbell
+   ```
+
+3. **Tinkerbell Service Issues**
+   ```bash
+   # Check Tinkerbell pods
+   kubectl get pods -n tinkerbell
+   
+   # View Tinkerbell logs
+   kubectl logs -n tinkerbell -l app=tink-server
+   ```
+
 ## Network Configuration
 
 The workflow assumes:
