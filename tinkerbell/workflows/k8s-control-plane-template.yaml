@@ -1,0 +1,115 @@
+version: "0.1"
+name: k8s-control-plane-setup
+global_timeout: 6000
+tasks:
+  - name: os-installation
+    worker: "{{.device_1}}"
+    volumes:
+      - /dev:/dev
+      - /dev/console:/dev/console
+      - lib:/lib:ro
+      - lib64:/lib64:ro
+      - /run/udev:/run/udev:ro
+      - /proc:/proc:ro
+      - /etc/resolv.conf:/etc/resolv.conf:ro
+    environment:
+      MIRROR_BASE_URL: "http://archive.ubuntu.com/ubuntu"
+      OS_VERSION: "24.04"
+    actions:
+      - name: "stream-image"
+        image: quay.io/tinkerbell-actions/image2disk:v1.0.0
+        timeout: 600
+        environment:
+          DEST_DISK: "/dev/sda"
+          IMG_URL: "{{.image_url}}"
+          COMPRESSED: "true"
+
+  - name: k8s-setup
+    worker: "{{.device_1}}"
+    actions:
+      - name: "configure-system"
+        image: quay.io/tinkerbell-actions/cexec:v1.0.0
+        timeout: 90
+        environment:
+          CMD_LINE: |
+            # Disable swap
+            swapoff -a
+            # Load required kernel modules
+            cat > /etc/modules-load.d/k8s.conf << EOF
+            overlay
+            br_netfilter
+            EOF
+            modprobe overlay
+            modprobe br_netfilter
+            # Set required sysctl params
+            cat > /etc/sysctl.d/k8s.conf << EOF
+            net.bridge.bridge-nf-call-iptables  = 1
+            net.bridge.bridge-nf-call-ip6tables = 1
+            net.ipv4.ip_forward                 = 1
+            EOF
+            sysctl --system
+
+      - name: "install-crio"
+        image: quay.io/tinkerbell-actions/cexec:v1.0.0
+        timeout: 300
+        environment:
+          CMD_LINE: |
+            # Install CRI-O
+            apt-get update
+            apt-get install -y software-properties-common
+            add-apt-repository ppa:projectatomic/ppa
+            apt-get update
+            apt-get install -y cri-o-1.28
+            systemctl enable crio
+            systemctl start crio
+
+      - name: "install-k8s"
+        image: quay.io/tinkerbell-actions/cexec:v1.0.0
+        timeout: 300
+        environment:
+          CMD_LINE: |
+            # Install Kubernetes components
+            apt-get update
+            apt-get install -y apt-transport-https ca-certificates curl
+            curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /etc/apt/keyrings/kubernetes-archive-keyring.gpg
+            echo "deb [signed-by=/etc/apt/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
+            apt-get update
+            apt-get install -y kubelet kubeadm kubectl
+            apt-mark hold kubelet kubeadm kubectl
+
+      - name: "init-control-plane"
+        image: quay.io/tinkerbell-actions/cexec:v1.0.0
+        timeout: 300
+        environment:
+          CMD_LINE: |
+            # Initialize control plane
+            kubeadm init --pod-network-cidr=10.244.0.0/16
+            # Configure kubectl for root user
+            mkdir -p /root/.kube
+            cp -i /etc/kubernetes/admin.conf /root/.kube/config
+
+      - name: "install-cni-plugins"
+        image: quay.io/tinkerbell-actions/cexec:v1.0.0
+        timeout: 300
+        environment:
+          CMD_LINE: |
+            # Determine architecture
+            ARCH=$(uname -m)
+            case $ARCH in
+              armv7*) ARCH="arm";;
+              aarch64) ARCH="arm64";;
+              x86_64) ARCH="amd64";;
+            esac
+            # Create CNI directory
+            mkdir -p /opt/cni/bin
+            # Download and install CNI plugins
+            curl -O -L https://github.com/containernetworking/plugins/releases/download/v1.6.2/cni-plugins-linux-$ARCH-v1.6.2.tgz
+            tar -C /opt/cni/bin -xzf cni-plugins-linux-$ARCH-v1.6.2.tgz
+
+      - name: "install-flannel"
+        image: quay.io/tinkerbell-actions/cexec:v1.0.0
+        timeout: 300
+        environment:
+          CMD_LINE: |
+            # Install Flannel CNI
+            kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml 

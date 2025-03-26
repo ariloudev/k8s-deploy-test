@@ -1,0 +1,35 @@
+version: "0.1"
+metadata:
+  instance:
+    hostname: k8s-control-plane
+    allow_pxe: true
+    allow_workflow: true
+    always_pxe: false
+    operating_system:
+      distro: "ubuntu"
+      os_slug: "ubuntu_24_04"
+      version: "24.04"
+    services_offered:
+      - type: "http"
+        address: "{{.device_1.ip}}"
+        port: 80
+        user: "root"
+        password: "{{.device_1.password}}"
+    network:
+      interfaces:
+        - dhcp: true
+          netboot: true
+          primary: true
+    storage:
+      disks:
+        - device: /dev/sda
+          wipe_table: true
+          partitions:
+            - label: EFI
+              number: 1
+              size: 100MB
+            - label: root
+              number: 2
+              size: 0
+              resize: true
+    tags: ["k8s", "control-plane"] 
