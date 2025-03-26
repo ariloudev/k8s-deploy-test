@@ -192,7 +192,7 @@ spec:
     spec:
       containers:
       - name: tink-cli
-        image: tinkerbell/tink-cli:latest
+        image: quay.io/tinkerbell/tink-cli:v0.8.0
         command: ["/bin/sh", "-c"]
         args:
         - |
