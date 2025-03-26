@@ -10,11 +10,11 @@ metadata:
       os_slug: "ubuntu_24_04"
       version: "24.04"
     services_offered:
-      - type: "http"
+      - type: "ssh"
         address: "{{.device_1.ip}}"
-        port: 80
-        user: "root"
-        password: "{{.device_1.password}}"
+        port: 22
+        user: "{{.device_1.user}}"
+        ssh_key: "{{.device_1.ssh_key}}"
     network:
       interfaces:
         - dhcp: true

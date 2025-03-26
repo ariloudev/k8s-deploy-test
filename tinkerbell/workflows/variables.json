@@ -1,7 +1,8 @@
 {
   "device_1": {
     "ip": "192.168.1.100",
-    "password": "your-secure-password",
+    "user": "ubuntu",
+    "ssh_key": "-----BEGIN OPENSSH PRIVATE KEY-----\nYour SSH private key here\n-----END OPENSSH PRIVATE KEY-----",
     "mac": "00:11:22:33:44:55"
   },
   "image_url": "http://archive.ubuntu.com/ubuntu/dists/noble/main/installer-amd64/current/images/netboot/mini.iso"

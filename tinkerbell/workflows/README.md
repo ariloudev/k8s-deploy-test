@@ -54,7 +54,8 @@ Create a `variables.json` file with the following structure:
 {
   "device_1": {
     "ip": "192.168.1.100",        # IP address of your target machine
-    "password": "your-secure-password",  # Root password for the target machine
+    "user": "ubuntu",             # SSH user for the target machine
+    "ssh_key": "-----BEGIN OPENSSH PRIVATE KEY-----\nYour SSH private key here\n-----END OPENSSH PRIVATE KEY-----",  # SSH private key
     "mac": "00:11:22:33:44:55"    # MAC address of your target machine
   },
   "image_url": "http://archive.ubuntu.com/ubuntu/dists/noble/main/installer-amd64/current/images/netboot/mini.iso"
@@ -77,7 +78,8 @@ You can also set the variables using environment variables:
 
 ```bash
 export TINKERBELL_DEVICE_1_IP="192.168.1.100"
-export TINKERBELL_DEVICE_1_PASSWORD="your-secure-password"
+export TINKERBELL_DEVICE_1_USER="ubuntu"
+export TINKERBELL_DEVICE_1_SSH_KEY="$(cat ~/.ssh/id_rsa)"
 export TINKERBELL_DEVICE_1_MAC="00:11:22:33:44:55"
 export TINKERBELL_IMAGE_URL="http://archive.ubuntu.com/ubuntu/dists/noble/main/installer-amd64/current/images/netboot/mini.iso"
 
@@ -92,16 +94,18 @@ tink workflow create \
 The following variables must be set:
 
 - `device_1.ip`: IP address of the target machine
-- `device_1.password`: Root password for the target machine
+- `device_1.user`: SSH user for the target machine
+- `device_1.ssh_key`: SSH private key for authentication
 - `device_1.mac`: MAC address of the target machine (for hardware registration)
 - `image_url`: URL to the Ubuntu 24.04 server image
 
 ### Security Considerations for Variables
 
 - Never commit the `variables.json` file with real credentials to version control
-- Use strong passwords
+- Use SSH keys with appropriate permissions (600)
 - Consider using a secrets management solution for production environments
 - The variables file should have restricted permissions (600)
+- Ensure the SSH key has the minimum required permissions on the target machine
 
 ## Usage Instructions
 
@@ -150,9 +154,9 @@ The workflow assumes:
 
 After the workflow completes successfully:
 
-1. SSH into the target machine:
+1. SSH into the target machine using your SSH key:
    ```bash
-   ssh root@<target-ip>
+   ssh -i ~/.ssh/your_key ubuntu@<target-ip>
    ```
 
 2. Verify Kubernetes control plane:
